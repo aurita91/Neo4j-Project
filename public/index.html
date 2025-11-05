@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Neo4j Graph Viewer</title>
+    <title>Neo4j Collapsible Graph</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body,
@@ -71,22 +71,25 @@
         <h3>Node Properties</h3>
         <pre id="props">Select a node to see details</pre>
     </div>
+
     <script>
         async function drawGraph() {
             const response = await fetch('/graph');
             const data = await response.json();
 
-            const typeColors = { "Entity": "#1f77b4", "DataGroup": "#ff7f0e", "DataPoint": "#2ca02c", "default": "#7f7f7f" };
             const FIXED_NODE_SIZE = 30;
-            const MAX_LABEL_LENGTH = 10;
+            const MAX_LABEL_LENGTH = 12;
+            const defaultNames = ["Patient", "Device", "Non-Standard / Custom", "Lead"]; // visible initially
 
-            const nodes = data.nodes.map(n => {
+            // Keep all nodes and edges in memory
+            const allNodesMap = {};
+            data.nodes.forEach(n => {
                 let label = n.data.name || n.data.label || n.data.id;
                 if (label.length > MAX_LABEL_LENGTH) label = label.substring(0, MAX_LABEL_LENGTH) + '...';
-                return {
+                allNodesMap[n.data.id] = {
                     id: n.data.id,
                     label: label,
-                    color: typeColors[n.data.type] || typeColors.default,
+                    color: '#1f77b4',
                     shape: 'circle',
                     size: FIXED_NODE_SIZE,
                     font: { color: '#fff', size: 14, face: 'Arial', bold: true },
@@ -94,7 +97,8 @@
                 };
             });
 
-            const edges = data.edges.map(e => ({
+            const allEdges = data.edges.map(e => ({
+                id: e.data.source + '_' + e.data.target,
                 from: e.data.source,
                 to: e.data.target,
                 label: e.data.label,
@@ -102,6 +106,18 @@
                 font: { align: 'middle', size: 12 },
                 originalData: e.data
             }));
+
+            const shownNodes = new Set();
+            const nodes = new vis.DataSet();
+            const edges = new vis.DataSet();
+
+            // Add default nodes
+            data.nodes.forEach(n => {
+                if (defaultNames.includes(n.data.name)) {
+                    nodes.add(allNodesMap[n.data.id]);
+                    shownNodes.add(n.data.id);
+                }
+            });
 
             const container = document.getElementById('network');
             const network = new vis.Network(container, { nodes, edges }, {
@@ -113,17 +129,31 @@
                     solver: 'forceAtlas2Based',
                     stabilization: { enabled: true, iterations: 200, updateInterval: 25 },
                     minVelocity: 0.1,
-                    maxVelocity: 5,
+                    maxVelocity: 3,
                     adaptiveTimestep: true
                 }
             });
 
             const propsPre = document.getElementById('props');
+
             network.on('click', params => {
                 if (params.nodes.length === 1) {
                     const nodeId = params.nodes[0];
-                    const nodeData = nodes.find(n => n.id === nodeId);
+                    const nodeData = allNodesMap[nodeId];
                     propsPre.textContent = JSON.stringify(nodeData.originalData, null, 2);
+
+                    // Dynamically add connected nodes
+                    allEdges.forEach(edge => {
+                        if (edge.from === nodeId && !shownNodes.has(edge.to)) {
+                            nodes.add(allNodesMap[edge.to]);
+                            edges.add(edge);
+                            shownNodes.add(edge.to);
+                        } else if (edge.to === nodeId && !shownNodes.has(edge.from)) {
+                            nodes.add(allNodesMap[edge.from]);
+                            edges.add(edge);
+                            shownNodes.add(edge.from);
+                        }
+                    });
                 }
             });
 
