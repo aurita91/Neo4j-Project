@@ -12,14 +12,13 @@
             padding: 0;
             height: 100%;
             display: flex;
-            font-family: Arial, sans-serif;
+            font-family: Arial;
         }
 
         #network {
             flex: 1;
             border: 1px solid lightgray;
             position: relative;
-            height: 100%;
         }
 
         #controls {
@@ -43,10 +42,7 @@
             border-left: 1px solid #ccc;
             padding: 10px;
             overflow-y: auto;
-            overflow-wrap: break-word;
-            word-wrap: break-word;
             background: #f9f9f9;
-            display: block;
         }
 
         #properties h3 {
@@ -58,7 +54,7 @@
             padding: 10px;
             border-radius: 4px;
             white-space: pre-wrap;
-            word-break: break-word;
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -85,22 +81,17 @@
                 "Entity": "#1f77b4",
                 "DataGroup": "#ff7f0e",
                 "DataPoint": "#2ca02c",
-                "Node": "#7f7f7f",
                 "default": "#7f7f7f"
             };
 
             const FIXED_NODE_SIZE = 30;
-            const MAX_LABEL_LENGTH = 6; // max chars to show in circle
+            const MAX_LABEL_LENGTH = 10;
 
-            // Prepare nodes
             const nodes = data.nodes.map(n => {
                 let label = n.data.name || n.data.label || n.data.id;
-
-                // Truncate long labels for fixed circle size
                 if (label.length > MAX_LABEL_LENGTH) {
-                    label = label.slice(0, MAX_LABEL_LENGTH) + '…';
+                    label = label.substring(0, MAX_LABEL_LENGTH) + '...';
                 }
-
                 return {
                     id: n.data.id,
                     label: label,
@@ -125,8 +116,8 @@
             const network = new vis.Network(container, { nodes, edges }, {
                 nodes: { shape: 'dot', size: FIXED_NODE_SIZE },
                 edges: { smooth: { type: 'continuous' } },
-                physics: { enabled: true, stabilization: true, barnesHut: { avoidOverlap: 1.2 } },
-                interaction: { hover: true, multiselect: false, zoomView: true, dragView: true }
+                interaction: { hover: true, multiselect: false, zoomView: true, dragView: true },
+                physics: { enabled: false } // FIXED positions
             });
 
             const propsPre = document.getElementById('props');
@@ -140,9 +131,15 @@
             });
 
             // Zoom buttons
-            document.getElementById('zoomIn').onclick = () => network.moveTo({ scale: network.getScale() * 1.2 });
-            document.getElementById('zoomOut').onclick = () => network.moveTo({ scale: network.getScale() / 1.2 });
-            document.getElementById('fit').onclick = () => network.fit();
+            document.getElementById('zoomIn').onclick = () => {
+                network.moveTo({ scale: network.getScale() * 1.2 });
+            };
+            document.getElementById('zoomOut').onclick = () => {
+                network.moveTo({ scale: network.getScale() / 1.2 });
+            };
+            document.getElementById('fit').onclick = () => {
+                network.fit();
+            };
         }
 
         drawGraph();
