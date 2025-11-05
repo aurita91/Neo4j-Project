@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Neo4j Graph Viewer</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            font-family: Arial, sans-serif;
+        }
+
+        #network {
+            flex: 1;
+            border: 1px solid lightgray;
+            position: relative;
+            height: 100%;
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 5px;
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        #controls button {
+            margin: 2px;
+            padding: 5px 8px;
+            font-size: 14px;
+        }
+
+        #properties {
+            width: 300px;
+            border-left: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            background: #f9f9f9;
+            display: block;
+        }
+
+        #properties h3 {
+            margin-top: 0;
+        }
+
+        #properties pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="network">
+        <div id="controls">
+            <button id="zoomIn">Zoom In</button>
+            <button id="zoomOut">Zoom Out</button>
+            <button id="fit">Fit</button>
+        </div>
+    </div>
+    <div id="properties">
+        <h3>Node Properties</h3>
+        <pre id="props">Select a node to see details</pre>
+    </div>
+
+    <script>
+        async function drawGraph() {
+            const response = await fetch('/graph');
+            const data = await response.json();
+
+            const typeColors = {
+                "Entity": "#1f77b4",
+                "DataGroup": "#ff7f0e",
+                "DataPoint": "#2ca02c",
+                "Node": "#7f7f7f",
+                "default": "#7f7f7f"
+            };
+
+            const FIXED_NODE_SIZE = 30;
+            const MAX_LABEL_LENGTH = 6; // max chars to show in circle
+
+            // Prepare nodes
+            const nodes = data.nodes.map(n => {
+                let label = n.data.name || n.data.label || n.data.id;
+
+                // Truncate long labels for fixed circle size
+                if (label.length > MAX_LABEL_LENGTH) {
+                    label = label.slice(0, MAX_LABEL_LENGTH) + '…';
+                }
+
+                return {
+                    id: n.data.id,
+                    label: label,
+                    color: typeColors[n.data.type] || typeColors.default,
+                    shape: 'circle',
+                    size: FIXED_NODE_SIZE,
+                    font: { color: '#fff', size: 14, face: 'Arial', bold: true },
+                    originalData: n.data
+                };
+            });
+
+            const edges = data.edges.map(e => ({
+                from: e.data.source,
+                to: e.data.target,
+                label: e.data.label,
+                arrows: 'to',
+                font: { align: 'middle', size: 12 },
+                originalData: e.data
+            }));
+
+            const container = document.getElementById('network');
+            const network = new vis.Network(container, { nodes, edges }, {
+                nodes: { shape: 'dot', size: FIXED_NODE_SIZE },
+                edges: { smooth: { type: 'continuous' } },
+                physics: { enabled: true, stabilization: true, barnesHut: { avoidOverlap: 1.2 } },
+                interaction: { hover: true, multiselect: false, zoomView: true, dragView: true }
+            });
+
+            const propsPre = document.getElementById('props');
+
+            network.on('click', function (params) {
+                if (params.nodes.length === 1) {
+                    const nodeId = params.nodes[0];
+                    const nodeData = nodes.find(n => n.id === nodeId);
+                    propsPre.textContent = JSON.stringify(nodeData.originalData, null, 2);
+                }
+            });
+
+            // Zoom buttons
+            document.getElementById('zoomIn').onclick = () => network.moveTo({ scale: network.getScale() * 1.2 });
+            document.getElementById('zoomOut').onclick = () => network.moveTo({ scale: network.getScale() / 1.2 });
+            document.getElementById('fit').onclick = () => network.fit();
+        }
+
+        drawGraph();
+    </script>
+</body>
+
+</html>
