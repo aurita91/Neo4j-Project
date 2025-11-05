@@ -71,27 +71,18 @@
         <h3>Node Properties</h3>
         <pre id="props">Select a node to see details</pre>
     </div>
-
     <script>
         async function drawGraph() {
             const response = await fetch('/graph');
             const data = await response.json();
 
-            const typeColors = {
-                "Entity": "#1f77b4",
-                "DataGroup": "#ff7f0e",
-                "DataPoint": "#2ca02c",
-                "default": "#7f7f7f"
-            };
-
+            const typeColors = { "Entity": "#1f77b4", "DataGroup": "#ff7f0e", "DataPoint": "#2ca02c", "default": "#7f7f7f" };
             const FIXED_NODE_SIZE = 30;
             const MAX_LABEL_LENGTH = 10;
 
             const nodes = data.nodes.map(n => {
                 let label = n.data.name || n.data.label || n.data.id;
-                if (label.length > MAX_LABEL_LENGTH) {
-                    label = label.substring(0, MAX_LABEL_LENGTH) + '...';
-                }
+                if (label.length > MAX_LABEL_LENGTH) label = label.substring(0, MAX_LABEL_LENGTH) + '...';
                 return {
                     id: n.data.id,
                     label: label,
@@ -117,12 +108,18 @@
                 nodes: { shape: 'dot', size: FIXED_NODE_SIZE },
                 edges: { smooth: { type: 'continuous' } },
                 interaction: { hover: true, multiselect: false, zoomView: true, dragView: true },
-                physics: { enabled: false } // FIXED positions
+                physics: {
+                    enabled: true,
+                    solver: 'forceAtlas2Based',
+                    stabilization: { enabled: true, iterations: 200, updateInterval: 25 },
+                    minVelocity: 0.1,
+                    maxVelocity: 5,
+                    adaptiveTimestep: true
+                }
             });
 
             const propsPre = document.getElementById('props');
-
-            network.on('click', function (params) {
+            network.on('click', params => {
                 if (params.nodes.length === 1) {
                     const nodeId = params.nodes[0];
                     const nodeData = nodes.find(n => n.id === nodeId);
@@ -130,16 +127,9 @@
                 }
             });
 
-            // Zoom buttons
-            document.getElementById('zoomIn').onclick = () => {
-                network.moveTo({ scale: network.getScale() * 1.2 });
-            };
-            document.getElementById('zoomOut').onclick = () => {
-                network.moveTo({ scale: network.getScale() / 1.2 });
-            };
-            document.getElementById('fit').onclick = () => {
-                network.fit();
-            };
+            document.getElementById('zoomIn').onclick = () => network.moveTo({ scale: network.getScale() * 1.2 });
+            document.getElementById('zoomOut').onclick = () => network.moveTo({ scale: network.getScale() / 1.2 });
+            document.getElementById('fit').onclick = () => network.fit();
         }
 
         drawGraph();
