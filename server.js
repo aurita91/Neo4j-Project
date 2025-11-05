@@ -8,6 +8,10 @@ app.use(cors());
 
 // Serve static files (your HTML/JS/CSS)
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 
 // Allow embedding in iframes (for Notion)
 app.use((req, res, next) => {
