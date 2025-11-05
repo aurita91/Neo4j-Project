@@ -16,6 +16,7 @@ app.get('/', (req, res) => {
 // Allow embedding in iframes (for Notion)
 app.use((req, res, next) => {
     res.setHeader("X-Frame-Options", "ALLOWALL");
+    res.setHeader("Content-Security-Policy", "frame-ancestors 'self' https://www.notion.so");
     next();
 });
 
